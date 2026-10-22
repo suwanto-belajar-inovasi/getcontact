@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants[cite: 1]
+# Konfigurasi GetContact API Constants
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -39,6 +39,11 @@ def _ts() -> str:
     return str(int(time.time() * 1000))
 
 def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id: str) -> tuple[int, dict]:
+    # Sanitasi input secara ketat untuk membuang spasi atau newline tersembunyi dari mobile paste
+    token = (token or "").strip()
+    final_key = (final_key or "").strip().replace("\n", "").replace("\r", "").replace(" ", "")
+    device_id = (device_id or "").strip()
+
     raw = json.dumps(payload, ensure_ascii=False)
     ts = _ts()
     headers = {
@@ -58,7 +63,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     try:
         body = json.dumps({"data": encrypt(raw, final_key)})
     except Exception as e:
-        return 400, {"meta": {"errorMessage": f"Encryption error: {str(e)}"}}
+        return 400, {"meta": {"errorMessage": f"Encryption error (Check Final Key format): {str(e)}"}}
 
     try:
         r = requests.post(GTC_BASE + endpoint, data=body, headers=headers, timeout=25)
@@ -268,15 +273,12 @@ HTML_TEMPLATE = """
                     let r = this.searchResult.result;
                     let allTags = [];
 
-                    // 1. Direct tags array
                     if (Array.isArray(r.tags)) {
                         allTags = allTags.concat(r.tags);
                     }
-                    // 2. Profile tags
                     if (r.profile && Array.isArray(r.profile.tags)) {
                         allTags = allTags.concat(r.profile.tags);
                     }
-                    // 3. Grouped tags
                     if (r.groupedTags) {
                         if (Array.isArray(r.groupedTags)) {
                             r.groupedTags.forEach(group => {
@@ -290,14 +292,12 @@ HTML_TEMPLATE = """
                             });
                         }
                     }
-                    // 4. Other possible tag containers
                     ['otherTags', 'ungroupedTags', 'tagList', 'customTags'].forEach(key => {
                         if (Array.isArray(r[key])) {
                             allTags = allTags.concat(r[key]);
                         }
                     });
 
-                    // Deduplicate and format
                     let map = new Map();
                     allTags.forEach(t => {
                         let tagName = typeof t === 'string' ? t : (t.tag || t.name);
