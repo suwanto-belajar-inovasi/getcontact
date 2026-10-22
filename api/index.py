@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants
+# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -19,7 +19,7 @@ LANG = "en_US"
 COUNTRY = "id"
 
 def _sig(ts: str, message: str, key_hex: str) -> str:
-    mac = hmac.new(bytes.fromhex(key_hex), f"{ts}-{message}".encode(), hashlib.sha256)
+    mac = hmac.new(bytes.fromhex(key_hex.strip()), f"{ts}-{message}".encode(), hashlib.sha256)
     return base64.b64encode(mac.digest()).decode()
 
 def _pad(b: bytes) -> bytes:
@@ -27,43 +27,52 @@ def _pad(b: bytes) -> bytes:
     return b + bytes([n]) * n
 
 def encrypt(data: str, key_hex: str) -> str:
-    enc = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).encryptor()
+    clean_key = key_hex.strip()
+    enc = Cipher(algorithms.AES(bytes.fromhex(clean_key)), modes.ECB()).encryptor()
     return base64.b64encode(enc.update(_pad(data.encode())) + enc.finalize()).decode()
 
 def decrypt(data: str, key_hex: str) -> str:
-    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).encryptor()
+    clean_key = key_hex.strip()
+    dec = Cipher(algorithms.AES(bytes.fromhex(clean_key)), modes.ECB()).encryptor()
     out = dec.update(base64.b64decode(data)) + dec.finalize()
-    return out[: -out[-1]].decode()
+    
+    # Penanganan padding yang aman untuk mencegah error UTF-8 decoding
+    pad_len = out[-1]
+    if pad_len > 16 or pad_len == 0:
+        unpadded = out
+    else:
+        unpadded = out[:-pad_len]
+        
+    return unpadded.decode("utf-8", errors="ignore")
 
 def _ts() -> str:
     return str(int(time.time() * 1000))
 
 def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id: str) -> tuple[int, dict]:
-    # Sanitasi input secara ketat untuk membuang spasi atau newline tersembunyi dari mobile paste
-    token = (token or "").strip()
-    final_key = (final_key or "").strip().replace("\n", "").replace("\r", "").replace(" ", "")
-    device_id = (device_id or "").strip()
-
     raw = json.dumps(payload, ensure_ascii=False)
     ts = _ts()
+    clean_token = (token or "").strip()
+    clean_key = (final_key or "").strip()
+    clean_device = (device_id or "default_device_id").strip()
+
     headers = {
         "Content-Type": "application/json",
         "x-os": ANDROID_OS,
         "x-app-version": APP_VERSION,
-        "x-client-device-id": device_id or "default_device_id",
+        "x-client-device-id": clean_device,
         "x-lang": LANG,
         "x-req-timestamp": ts,
         "x-country-code": COUNTRY,
         "x-encrypted": "1",
-        "x-req-signature": _sig(ts, raw, HMAC_KEY),
+        "x-req-signature": _sig(ts, raw, clean_key),
     }
-    if token:
-        headers["x-token"] = token
+    if clean_token:
+        headers["x-token"] = clean_token
     
     try:
-        body = json.dumps({"data": encrypt(raw, final_key)})
+        body = json.dumps({"data": encrypt(raw, clean_key)})
     except Exception as e:
-        return 400, {"meta": {"errorMessage": f"Encryption error (Check Final Key format): {str(e)}"}}
+        return 400, {"meta": {"errorMessage": f"Encryption error: {str(e)}"}}
 
     try:
         r = requests.post(GTC_BASE + endpoint, data=body, headers=headers, timeout=25)
@@ -73,13 +82,14 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
 
     if "data" in parsed:
         try:
-            parsed = json.loads(decrypt(parsed["data"], final_key))
+            decrypted_str = decrypt(parsed["data"], clean_key)
+            parsed = json.loads(decrypted_str)
         except Exception as e:
-            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token might be incorrect. Detail: {str(e)}"}}
+            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token is incorrect. Detail: {str(e)}"}}
             
     return r.status_code, parsed
 
-# Frontend HTML Template dengan Ekstraksi Tag Komprehensif
+# Frontend HTML Template (Estetika & Fungsi Menu Tetap Utuh)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
@@ -199,7 +209,7 @@ HTML_TEMPLATE = """
                                         </div>
                                     </template>
 
-                                    <!-- Tags List Card (Comprehensive View) -->
+                                    <!-- Tags List Card (Comprehensive View - All Tags) -->
                                     <template x-if="getTotalTags().length > 0">
                                         <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
                                             <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="getTotalTags().length"></span>)</div>
@@ -247,13 +257,13 @@ HTML_TEMPLATE = """
         </div>
     </main>
 
-    <!-- App Logic with Comprehensive Tag Extractor -->
+    <!-- App Logic with Comprehensive Tag Extractor & Trim Sanitizer -->
     <script>
         function getcontactApp() {
             return {
-                token: localStorage.getItem('gtc_token') || '',
-                finalKey: localStorage.getItem('gtc_finalKey') || '',
-                deviceId: localStorage.getItem('gtc_deviceId') || '',
+                token: (localStorage.getItem('gtc_token') || '').trim(),
+                finalKey: (localStorage.getItem('gtc_finalKey') || '').trim(),
+                deviceId: (localStorage.getItem('gtc_deviceId') || '').trim(),
                 phone: '',
                 searchType: 'profile',
                 showCred: false,
@@ -263,9 +273,9 @@ HTML_TEMPLATE = """
                 quotaInfo: 'Belum dimuat.',
 
                 init() {
-                    this.$watch('token', val => localStorage.setItem('gtc_token', val));
-                    this.$watch('finalKey', val => localStorage.setItem('gtc_finalKey', val));
-                    this.$watch('deviceId', val => localStorage.setItem('gtc_deviceId', val));
+                    this.$watch('token', val => localStorage.setItem('gtc_token', val ? val.trim() : ''));
+                    this.$watch('finalKey', val => localStorage.setItem('gtc_finalKey', val ? val.trim() : ''));
+                    this.$watch('deviceId', val => localStorage.setItem('gtc_deviceId', val ? val.trim() : ''));
                 },
 
                 getTotalTags() {
@@ -273,12 +283,8 @@ HTML_TEMPLATE = """
                     let r = this.searchResult.result;
                     let allTags = [];
 
-                    if (Array.isArray(r.tags)) {
-                        allTags = allTags.concat(r.tags);
-                    }
-                    if (r.profile && Array.isArray(r.profile.tags)) {
-                        allTags = allTags.concat(r.profile.tags);
-                    }
+                    if (Array.isArray(r.tags)) allTags = allTags.concat(r.tags);
+                    if (r.profile && Array.isArray(r.profile.tags)) allTags = allTags.concat(r.profile.tags);
                     if (r.groupedTags) {
                         if (Array.isArray(r.groupedTags)) {
                             r.groupedTags.forEach(group => {
@@ -293,9 +299,7 @@ HTML_TEMPLATE = """
                         }
                     }
                     ['otherTags', 'ungroupedTags', 'tagList', 'customTags'].forEach(key => {
-                        if (Array.isArray(r[key])) {
-                            allTags = allTags.concat(r[key]);
-                        }
+                        if (Array.isArray(r[key])) allTags = allTags.concat(r[key]);
                     });
 
                     let map = new Map();
@@ -319,7 +323,11 @@ HTML_TEMPLATE = """
                 },
 
                 async performSearch() {
-                    if (!this.token || !this.finalKey) {
+                    let cleanToken = (this.token || '').trim();
+                    let cleanKey = (this.finalKey || '').trim();
+                    let cleanDevice = (this.deviceId || '').trim();
+
+                    if (!cleanToken || !cleanKey) {
                         alert('Harap isi Token dan Final Key terlebih dahulu!');
                         this.showCred = true;
                         return;
@@ -335,9 +343,9 @@ HTML_TEMPLATE = """
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                token: this.token,
-                                finalKey: this.finalKey,
-                                deviceId: this.deviceId,
+                                token: cleanToken,
+                                finalKey: cleanKey,
+                                deviceId: cleanDevice,
                                 phone: this.phone,
                                 type: this.searchType
                             })
@@ -354,7 +362,11 @@ HTML_TEMPLATE = """
                 },
 
                 async fetchQuota() {
-                    if (!this.token || !this.finalKey) {
+                    let cleanToken = (this.token || '').trim();
+                    let cleanKey = (this.finalKey || '').trim();
+                    let cleanDevice = (this.deviceId || '').trim();
+
+                    if (!cleanToken || !cleanKey) {
                         alert('Harap isi Token dan Final Key!');
                         this.showCred = true;
                         return;
@@ -364,7 +376,7 @@ HTML_TEMPLATE = """
                         let res = await fetch('/api/quota', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ token: this.token, finalKey: this.finalKey, deviceId: this.deviceId })
+                            body: JSON.stringify({ token: cleanToken, finalKey: cleanKey, deviceId: cleanDevice })
                         });
                         let data = await res.json();
                         let usage = data.result && data.result.subscriptionInfo ? data.result.subscriptionInfo.usage : null;
@@ -412,7 +424,7 @@ def api_search_endpoint():
         "countryCode": COUNTRY,
         "phoneNumber": phone,
         "source": "profile" if source == "tags" else "search",
-        "token": token,
+        "token": token.strip() if token else "",
     }
 
     code, body = gtc_call(endpoint, payload, token, final_key, device_id)
