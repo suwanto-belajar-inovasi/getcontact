@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants
+# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -31,7 +31,7 @@ def encrypt(data: str, key_hex: str) -> str:
     return base64.b64encode(enc.update(_pad(data.encode())) + enc.finalize()).decode()
 
 def decrypt(data: str, key_hex: str) -> str:
-    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).decryptor()
+    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).encryptor()
     out = dec.update(base64.b64decode(data)) + dec.finalize()
     return out[: -out[-1]].decode()
 
@@ -58,7 +58,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     try:
         body = json.dumps({"data": encrypt(raw, final_key)})
     except Exception as e:
-        return 400, {"meta": {"errorMessage": f"Encryption error (Check Final Key format): {str(e)}"}}
+        return 400, {"meta": {"errorMessage": f"Encryption error: {str(e)}"}}
 
     try:
         r = requests.post(GTC_BASE + endpoint, data=body, headers=headers, timeout=25)
@@ -70,11 +70,11 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
         try:
             parsed = json.loads(decrypt(parsed["data"], final_key))
         except Exception as e:
-            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token might be incorrect or truncated. Detail: {str(e)}"}}
+            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token might be incorrect. Detail: {str(e)}"}}
             
     return r.status_code, parsed
 
-# Frontend HTML Template dengan Textarea Responsif untuk Mobile
+# Frontend HTML Template dengan Ekstraksi Tag Komprehensif
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
@@ -189,17 +189,17 @@ HTML_TEMPLATE = """
                                             <div class="grid grid-cols-2 gap-2 text-sm">
                                                 <div><span class="text-slate-400 text-xs">Nama Tampil:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.displayName || '-'"></div></div>
                                                 <div><span class="text-slate-400 text-xs">Nomor:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.phoneNumber || '-'"></div></div>
-                                                <div><span class="text-slate-400 text-xs">Total Tag:</span> <div class="font-medium text-emerald-400" x-text="searchResult.result.profile.tagCount || '0'"></div></div>
+                                                <div><span class="text-slate-400 text-xs">Total Tag:</span> <div class="font-medium text-emerald-400" x-text="searchResult.result.profile.tagCount || getTotalTags().length"></div></div>
                                             </div>
                                         </div>
                                     </template>
 
-                                    <!-- Tags List Card (Detail View) -->
-                                    <template x-if="searchResult.result && searchResult.result.tags">
+                                    <!-- Tags List Card (Comprehensive View) -->
+                                    <template x-if="getTotalTags().length > 0">
                                         <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
-                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="searchResult.result.tags.length"></span>)</div>
-                                            <div class="flex flex-wrap gap-2 max-h-64 overflow-y-auto pr-1">
-                                                <template x-for="tag in searchResult.result.tags">
+                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="getTotalTags().length"></span>)</div>
+                                            <div class="flex flex-wrap gap-2 max-h-72 overflow-y-auto pr-1">
+                                                <template x-for="tag in getTotalTags()">
                                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700">
                                                         <span x-text="tag.tag"></span>
                                                         <span class="ml-1.5 px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px]" x-text="'x' + tag.count"></span>
@@ -242,7 +242,7 @@ HTML_TEMPLATE = """
         </div>
     </main>
 
-    <!-- App Logic -->
+    <!-- App Logic with Comprehensive Tag Extractor -->
     <script>
         function getcontactApp() {
             return {
@@ -261,6 +261,61 @@ HTML_TEMPLATE = """
                     this.$watch('token', val => localStorage.setItem('gtc_token', val));
                     this.$watch('finalKey', val => localStorage.setItem('gtc_finalKey', val));
                     this.$watch('deviceId', val => localStorage.setItem('gtc_deviceId', val));
+                },
+
+                getTotalTags() {
+                    if (!this.searchResult || !this.searchResult.result) return [];
+                    let r = this.searchResult.result;
+                    let allTags = [];
+
+                    // 1. Direct tags array
+                    if (Array.isArray(r.tags)) {
+                        allTags = allTags.concat(r.tags);
+                    }
+                    // 2. Profile tags
+                    if (r.profile && Array.isArray(r.profile.tags)) {
+                        allTags = allTags.concat(r.profile.tags);
+                    }
+                    // 3. Grouped tags
+                    if (r.groupedTags) {
+                        if (Array.isArray(r.groupedTags)) {
+                            r.groupedTags.forEach(group => {
+                                if (Array.isArray(group.tags)) allTags = allTags.concat(group.tags);
+                                if (Array.isArray(group)) allTags = allTags.concat(group);
+                            });
+                        } else if (typeof r.groupedTags === 'object') {
+                            Object.values(r.groupedTags).forEach(val => {
+                                if (Array.isArray(val)) allTags = allTags.concat(val);
+                                if (val && Array.isArray(val.tags)) allTags = allTags.concat(val.tags);
+                            });
+                        }
+                    }
+                    // 4. Other possible tag containers
+                    ['otherTags', 'ungroupedTags', 'tagList', 'customTags'].forEach(key => {
+                        if (Array.isArray(r[key])) {
+                            allTags = allTags.concat(r[key]);
+                        }
+                    });
+
+                    // Deduplicate and format
+                    let map = new Map();
+                    allTags.forEach(t => {
+                        let tagName = typeof t === 'string' ? t : (t.tag || t.name);
+                        if (tagName) {
+                            let count = t.count || 1;
+                            if (map.has(tagName)) {
+                                map.set(tagName, Math.max(map.get(tagName), count));
+                            } else {
+                                map.set(tagName, count);
+                            }
+                        }
+                    });
+
+                    let result = [];
+                    map.forEach((count, tag) => {
+                        result.push({ tag: tag, count: count });
+                    });
+                    return result;
                 },
 
                 async performSearch() {
