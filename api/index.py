@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants
+# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -31,7 +31,7 @@ def encrypt(data: str, key_hex: str) -> str:
     return base64.b64encode(enc.update(_pad(data.encode())) + enc.finalize()).decode()
 
 def decrypt(data: str, key_hex: str) -> str:
-    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).decryptor()
+    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).encryptor()
     out = dec.update(base64.b64decode(data)) + dec.finalize()
     return out[: -out[-1]].decode()
 
@@ -67,27 +67,18 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
             pass
     return r.status_code, parsed
 
-def dig(obj, path, default=None):
-    for k in path.split("."):
-        if not isinstance(obj, dict) or k not in obj:
-            return default
-        obj = obj[k]
-    return obj
-
-# Frontend HTML template dengan desain Cyber-Dark & Glassmorphism yang Elegan
+# Frontend HTML Template dengan dukungan penuh render Tag list & Profil
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GetContact Web Nexus | Professional Dashboard</title>
+    <title>GetContact Web Nexus | Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    </style>
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
     <!-- Header -->
@@ -102,20 +93,17 @@ HTML_TEMPLATE = """
                     <p class="text-xs text-slate-400">Powered by Flask & Vercel Serverless</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1.5"></span> Online
-                </span>
-            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1.5"></span> Online
+            </span>
         </div>
     </header>
 
     <!-- Main Container -->
     <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 space-y-6" x-data="getcontactApp()">
         
-        <!-- Credential Configuration Card -->
-        <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div class="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        <!-- Credential Card -->
+        <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl">
             <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center justify-between">
                 <span>🔐 Autentikasi Akun (Credential)</span>
                 <button @click="showCred = !showCred" class="text-xs text-emerald-400 hover:underline focus:outline-none" x-text="showCred ? 'Sembunyikan' : 'Ubah Kredensial'"></button>
@@ -123,43 +111,37 @@ HTML_TEMPLATE = """
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" x-show="showCred" x-transition>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Token</label>
-                    <input type="text" x-model="token" placeholder="Masukkan Token..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+                    <input type="text" x-model="token" placeholder="Masukkan Token..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Final Key (Hex)</label>
-                    <input type="text" x-model="finalKey" placeholder="Masukkan Final Key..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+                    <input type="text" x-model="finalKey" placeholder="Masukkan Final Key..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Client Device ID</label>
-                    <input type="text" x-model="deviceId" placeholder="Device ID..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+                    <input type="text" x-model="deviceId" placeholder="Device ID..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                 </div>
-            </div>
-            <div class="text-xs text-slate-500 mt-2" x-show="!showCred">
-                Kredensial aktif tersimpan di sesi browser Anda. Klik "Ubah Kredensial" jika ingin mengganti token.
             </div>
         </div>
 
-        <!-- Action Panel Tabs -->
+        <!-- Content Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <!-- Left Column: Search & Quota Controls -->
-            <div class="md:col-span-1 space-y-6">
-                <!-- Search Box -->
+            <!-- Left Controls -->
+            <div class="space-y-6">
                 <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
                     <h3 class="font-semibold text-slate-200 text-sm">🔍 Pencarian Nomor</h3>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1">Nomor Telepon (E.164 / Lokal)</label>
-                        <input type="text" x-model="phone" placeholder="+628xxxxxxxxxx" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+                        <label class="block text-xs text-slate-400 mb-1">Nomor Telepon</label>
+                        <input type="text" x-model="phone" placeholder="+628xxxxxxxxxx" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                     </div>
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Tipe Pencarian</label>
-                        <select x-model="searchType" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+                        <select x-model="searchType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                             <option value="profile">Profil Pemilik</option>
-                            <option value="tags">Tag / Nama Tersimpan</option>
+                            <option value="tags">Tag / Nama Tersimpan (Detail)</option>
                         </select>
                     </div>
-                    <button @click="performSearch" :disabled="loading" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-semibold py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition disabled:opacity-50 flex items-center justify-center space-x-2">
-                        <svg x-show="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <button @click="performSearch" :disabled="loading" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-xl transition shadow-lg shadow-emerald-500/20 disabled:opacity-50">
                         <span x-text="loading ? 'Memproses...' : 'Cari Sekarang'"></span>
                     </button>
                 </div>
@@ -170,60 +152,62 @@ HTML_TEMPLATE = """
                         <h3 class="font-semibold text-slate-200 text-sm">📊 Status Kuota</h3>
                         <button @click="fetchQuota" class="text-xs text-emerald-400 hover:underline">Refresh</button>
                     </div>
-                    <div class="text-xs text-slate-400 space-y-1" x-html="quotaInfo">
-                        Klik tombol refresh untuk memuat sisa kuota akun Anda.
-                    </div>
+                    <div class="text-xs text-slate-400 space-y-1" x-html="quotaInfo">Klik tombol refresh untuk memuat sisa kuota.</div>
                 </div>
             </div>
 
-            <!-- Right Column: Results Display -->
+            <!-- Right Results Display -->
             <div class="md:col-span-2">
-                <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl min-h-[420px] flex flex-col justify-between">
+                <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl min-h-[450px] flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
                             <h3 class="font-semibold text-slate-200 text-sm">📋 Hasil Analisis & Data</h3>
                             <span class="text-xs text-slate-400" x-text="resultStatus"></span>
                         </div>
 
-                        <!-- Result Content Container -->
+                        <!-- Results Container -->
                         <div class="space-y-4">
                             <template x-if="searchResult">
                                 <div class="space-y-4">
-                                    <!-- Profile Info -->
-                                    <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2" x-show="searchResult.result && searchResult.result.profile">
-                                        <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Informasi Profil</div>
-                                        <div class="grid grid-cols-2 gap-2 text-sm">
-                                            <div><span class="text-slate-400 text-xs">Nama Tampil:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.displayName || '-'"></div></div>
-                                            <div><span class="text-slate-400 text-xs">Nomor:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.phoneNumber || '-'"></div></div>
+                                    <!-- Profile Section if available -->
+                                    <template x-if="searchResult.result && searchResult.result.profile">
+                                        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2">
+                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Informasi Profil</div>
+                                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                                <div><span class="text-slate-400 text-xs">Nama:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.displayName || '-'"></div></div>
+                                                <div><span class="text-slate-400 text-xs">Nomor:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.phoneNumber || '-'"></div></div>
+                                                <div><span class="text-slate-400 text-xs">Total Tag:</span> <div class="font-medium text-emerald-400" x-text="searchResult.result.profile.tagCount || '0'"></div></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
 
-                                    <!-- Tags List -->
-                                    <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3" x-show="searchResult.result && searchResult.result.tags">
-                                        <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag (<span x-text="searchResult.result.tags.length"></span>)</div>
-                                        <div class="flex flex-wrap gap-2">
-                                            <template x-for="tag in searchResult.result.tags">
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700">
-                                                    <span x-text="tag.tag"></span>
-                                                    <span class="ml-1.5 px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px]" x-text="'x' + tag.count"></span>
-                                                </span>
-                                            </template>
+                                    <!-- Tags List Section (from /number-detail) -->
+                                    <template x-if="searchResult.result && searchResult.result.tags">
+                                        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
+                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="searchResult.result.tags.length"></span>)</div>
+                                            <div class="flex flex-wrap gap-2 max-h-64 overflow-y-auto pr-1">
+                                                <template x-for="tag in searchResult.result.tags">
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700">
+                                                        <span x-text="tag.tag"></span>
+                                                        <span class="ml-1.5 px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px]" x-text="'x' + tag.count"></span>
+                                                    </span>
+                                                </template>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
 
-                                    <!-- Raw JSON view fallback -->
+                                    <!-- Raw JSON view -->
                                     <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4">
                                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Raw JSON Response</div>
-                                        <pre class="text-xs text-emerald-300 font-mono overflow-x-auto max-h-60" x-text="JSON.stringify(searchResult, null, 2)"></pre>
+                                        <pre class="text-xs text-emerald-300 font-mono overflow-x-auto max-h-48" x-text="JSON.stringify(searchResult, null, 2)"></pre>
                                     </div>
                                 </div>
                             </template>
 
                             <template x-if="!searchResult">
                                 <div class="flex flex-col items-center justify-center py-20 text-center text-slate-500 space-y-2">
-                                    <svg class="w-12 h-12 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     <p class="text-sm">Belum ada pencarian dilakukan.</p>
-                                    <p class="text-xs text-slate-600">Masukkan nomor dan klik "Cari Sekarang" untuk memulai.</p>
+                                    <p class="text-xs text-slate-600">Pilih tipe pencarian "Tag / Nama Tersimpan" untuk melihat rincian tag.</p>
                                 </div>
                             </template>
                         </div>
@@ -234,11 +218,10 @@ HTML_TEMPLATE = """
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <!-- Alpine JS App Logic -->
+    <!-- App Logic -->
     <script>
         function getcontactApp() {
             return {
@@ -261,16 +244,16 @@ HTML_TEMPLATE = """
 
                 async performSearch() {
                     if (!this.token || !this.finalKey) {
-                        alert('Harap isi Token dan Final Key terlebih dahulu di menu Kredensial!');
+                        alert('Harap isi Token dan Final Key terlebih dahulu!');
                         this.showCred = true;
                         return;
                     }
                     if (!this.phone) {
-                        alert('Masukkan nomor telepon yang ingin dicari.');
+                        alert('Masukkan nomor telepon.');
                         return;
                     }
                     this.loading = true;
-                    this.resultStatus = 'Mengirim request ke server...';
+                    this.resultStatus = 'Mengirim request...';
                     try {
                         let res = await fetch('/api/search', {
                             method: 'POST',
@@ -287,7 +270,7 @@ HTML_TEMPLATE = """
                         this.searchResult = data;
                         this.resultStatus = `Selesai (HTTP ${res.status})`;
                     } catch (err) {
-                        alert('Terjadi kesalahan jaringan: ' + err);
+                        alert('Error: ' + err);
                         this.resultStatus = 'Gagal';
                     } finally {
                         this.loading = false;
@@ -296,7 +279,7 @@ HTML_TEMPLATE = """
 
                 async fetchQuota() {
                     if (!this.token || !this.finalKey) {
-                        alert('Harap isi Token dan Final Key terlebih dahulu!');
+                        alert('Harap isi Token dan Final Key!');
                         this.showCred = true;
                         return;
                     }
@@ -305,11 +288,7 @@ HTML_TEMPLATE = """
                         let res = await fetch('/api/quota', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                token: this.token,
-                                finalKey: this.finalKey,
-                                deviceId: this.deviceId
-                            })
+                            body: JSON.stringify({ token: this.token, finalKey: this.finalKey, deviceId: this.deviceId })
                         });
                         let data = await res.json();
                         let usage = data.result && data.result.subscriptionInfo ? data.result.subscriptionInfo.usage : null;
@@ -320,10 +299,10 @@ HTML_TEMPLATE = """
                             }
                             this.quotaInfo = text;
                         } else {
-                            this.quotaInfo = '<span class="text-red-400">Gagal memuat kuota atau token tidak valid.</span>';
+                            this.quotaInfo = '<span class="text-red-400">Gagal memuat kuota.</span>';
                         }
                     } catch (err) {
-                        this.quotaInfo = '<span class="text-red-400">Error koneksi server.</span>';
+                        this.quotaInfo = '<span class="text-red-400">Error koneksi.</span>';
                     }
                 }
             }
@@ -346,13 +325,13 @@ def api_search_endpoint():
     phone_raw = data.get("phone", "")
     source = data.get("type", "profile")
 
-    # Normalisasi nomor telepon sederhana
     phone = phone_raw.strip()
     if phone.startswith("0"):
         phone = "+62" + phone[1:]
     elif phone.startswith("62"):
         phone = "+" + phone
 
+    # Endpoint otomatis berubah ke number-detail jika tipe pencarian adalah 'tags'[cite: 1]
     endpoint = "/v2.8/number-detail" if source == "tags" else "/v2.8/search"
     payload = {
         "countryCode": COUNTRY,
