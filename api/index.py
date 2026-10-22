@@ -98,7 +98,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
                 return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Kemungkinan besar Final Key atau Token salah/kedaluwarsa."}}
             parsed = json.loads(decrypted_str)
         except json.JSONDecodeError as jde:
-            return 400, {"meta": {"errorMessage": f"Gagal memparsing JSON hasil dekripsi (Kemungkinan kunci salah): {str(jde)}"}}]
+            return 400, {"meta": {"errorMessage": f"Gagal memparsing JSON hasil dekripsi: {str(jde)}"}}]
         except Exception as e:
             return 400, {"meta": {"errorMessage": f"Decryption failed: {str(e)}"}}
             
