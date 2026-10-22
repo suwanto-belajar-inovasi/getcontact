@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants[cite: 1]
+# Konfigurasi GetContact API Constants
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -19,7 +19,8 @@ LANG = "en_US"
 COUNTRY = "id"
 
 def _sig(ts: str, message: str, key_hex: str) -> str:
-    mac = hmac.new(bytes.fromhex(key_hex.strip()), f"{ts}-{message}".encode(), hashlib.sha256)
+    clean_key = key_hex.strip()
+    mac = hmac.new(bytes.fromhex(clean_key), f"{ts}-{message}".encode(), hashlib.sha256)
     return base64.b64encode(mac.digest()).decode()
 
 def _pad(b: bytes) -> bytes:
@@ -33,17 +34,21 @@ def encrypt(data: str, key_hex: str) -> str:
 
 def decrypt(data: str, key_hex: str) -> str:
     clean_key = key_hex.strip()
-    dec = Cipher(algorithms.AES(bytes.fromhex(clean_key)), modes.ECB()).encryptor()
-    out = dec.update(base64.b64decode(data)) + dec.finalize()
-    
-    # Penanganan padding yang aman untuk mencegah error UTF-8 decoding
-    pad_len = out[-1]
-    if pad_len > 16 or pad_len == 0:
-        unpadded = out
-    else:
-        unpadded = out[:-pad_len]
-        
-    return unpadded.decode("utf-8", errors="ignore")
+    try:
+        b_key = bytes.fromhex(clean_key)
+        dec = Cipher(algorithms.AES(b_key), modes.ECB()).encryptor()
+        decoded_bytes = base64.b64decode(data)
+        out = dec.update(decoded_bytes) + dec.finalize()
+        if not out:
+            return ""
+        pad_len = out[-1]
+        if pad_len > 16 or pad_len <= 0:
+            unpadded = out
+        else:
+            unpadded = out[:-pad_len]
+        return unpadded.decode("utf-8", errors="ignore").strip()
+    except Exception as e:
+        raise ValueError(f"Proses dekripsi gagal: {str(e)}")
 
 def _ts() -> str:
     return str(int(time.time() * 1000))
@@ -54,6 +59,9 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     clean_token = (token or "").strip()
     clean_key = (final_key or "").strip()
     clean_device = (device_id or "default_device_id").strip()
+
+    if not clean_key or len(clean_key) < 32:
+        return 400, {"meta": {"errorMessage": "Final Key tidak valid atau kosong. Harap periksa kembali kredensial Anda."}}
 
     headers = {
         "Content-Type": "application/json",
@@ -76,6 +84,9 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
 
     try:
         r = requests.post(GTC_BASE + endpoint, data=body, headers=headers, timeout=25)
+        text_content = r.text.strip()
+        if not text_content:
+            return r.status_code, {"meta": {"errorMessage": "Server GetContact merespons dengan data kosong."}}
         parsed = r.json()
     except Exception as e:
         return 500, {"meta": {"errorMessage": f"Network or JSON parse error: {str(e)}"}}
@@ -83,13 +94,17 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     if "data" in parsed:
         try:
             decrypted_str = decrypt(parsed["data"], clean_key)
+            if not decrypted_str:
+                return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Kemungkinan besar Final Key atau Token salah/kedaluwarsa."}}
             parsed = json.loads(decrypted_str)
+        except json.JSONDecodeError as jde:
+            return 400, {"meta": {"errorMessage": f"Gagal memparsing JSON hasil dekripsi (Kemungkinan kunci salah): {str(jde)}"}}]
         except Exception as e:
-            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token is incorrect. Detail: {str(e)}"}}
+            return 400, {"meta": {"errorMessage": f"Decryption failed: {str(e)}"}}
             
     return r.status_code, parsed
 
-# Frontend HTML Template (Estetika & Fungsi Menu Tetap Utuh)
+# Frontend HTML Template dengan Estetika & Fitur Komprehensif
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
