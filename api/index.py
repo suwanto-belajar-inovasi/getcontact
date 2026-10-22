@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants[cite: 1]
+# Konfigurasi GetContact API Constants
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -31,7 +31,7 @@ def encrypt(data: str, key_hex: str) -> str:
     return base64.b64encode(enc.update(_pad(data.encode())) + enc.finalize()).decode()
 
 def decrypt(data: str, key_hex: str) -> str:
-    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).encryptor()
+    dec = Cipher(algorithms.AES(bytes.fromhex(key_hex)), modes.ECB()).decryptor()
     out = dec.update(base64.b64decode(data)) + dec.finalize()
     return out[: -out[-1]].decode()
 
@@ -70,11 +70,11 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
         try:
             parsed = json.loads(decrypt(parsed["data"], final_key))
         except Exception as e:
-            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token might be incorrect. Detail: {str(e)}"}}
+            return 400, {"meta": {"errorMessage": f"Decryption failed! Final Key or Token might be incorrect or truncated. Detail: {str(e)}"}}
             
     return r.status_code, parsed
 
-# Frontend HTML Template dengan Cyber-Dark & Glassmorphism yang Elegan
+# Frontend HTML Template dengan Textarea Responsif untuk Mobile
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
@@ -118,15 +118,15 @@ HTML_TEMPLATE = """
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" x-show="showCred" x-transition>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Token</label>
-                    <input type="text" x-model="token" placeholder="Masukkan Token..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                    <textarea rows="2" x-model="token" placeholder="Masukkan Token..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Final Key (Hex)</label>
-                    <input type="text" x-model="finalKey" placeholder="Masukkan Final Key..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                    <textarea rows="2" x-model="finalKey" placeholder="Masukkan Final Key..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Client Device ID</label>
-                    <input type="text" x-model="deviceId" placeholder="Device ID..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                    <input type="text" x-model="deviceId" placeholder="Device ID..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500">
                 </div>
             </div>
             <div class="text-xs text-slate-500 mt-2" x-show="!showCred">
