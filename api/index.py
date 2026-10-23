@@ -10,7 +10,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -61,7 +60,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     clean_device = (device_id or "default_device_id").strip()
 
     if not clean_key or len(clean_key) < 32:
-        return 400, {"meta": {"errorMessage": "Final Key tidak valid atau kosong. Harap periksa kembali kredensial Anda."}}
+        return 400, {"meta": {"errorMessage": "Final Key tidak valid atau kosong. Periksa kembali kredensial Anda."}}
 
     headers = {
         "Content-Type": "application/json",
@@ -95,10 +94,10 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
         try:
             decrypted_str = decrypt(parsed["data"], clean_key)
             if not decrypted_str:
-                return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Kredensial Final Key / Token salah atau kedaluwarsa."}}
+                return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Final Key atau Token salah/kedaluwarsa."}}
             parsed = json.loads(decrypted_str)
         except json.JSONDecodeError:
-            return 400, {"meta": {"errorMessage": "Gagal membaca data hasil dekripsi (Final Key atau Token tidak cocok)."}}
+            return 400, {"meta": {"errorMessage": "Gagal membaca hasil dekripsi (Pastikan Final Key benar)."}}
         except Exception as e:
             return 400, {"meta": {"errorMessage": f"Decryption failed: {str(e)}"}}
             
