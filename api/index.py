@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants[cite: 1]
+# Konfigurasi GetContact API Constants
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -36,7 +36,7 @@ def decrypt(data: str, key_hex: str) -> str:
     clean_key = key_hex.strip()
     try:
         b_key = bytes.fromhex(clean_key)
-        dec = Cipher(algorithms.AES(b_key), modes.ECB()).decryptor()
+        dec = Cipher(algorithms.AES(b_key), modes.ECB()).encryptor()
         decoded_bytes = base64.b64decode(data)
         out = dec.update(decoded_bytes) + dec.finalize()
         if not out:
@@ -63,7 +63,6 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     if not clean_key or len(clean_key) < 32:
         return 400, {"meta": {"errorMessage": "Final Key tidak valid atau kosong. Periksa kembali kredensial Anda."}}
 
-    # PERBAIKAN UTAMA: Menggunakan HMAC_KEY untuk tanda tangan request (x-req-signature)[cite: 8, 15]
     headers = {
         "Content-Type": "application/json",
         "x-os": ANDROID_OS,
@@ -105,7 +104,6 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
             
     return r.status_code, parsed
 
-# Frontend HTML Template dengan Estetika & Fitur Komprehensif
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
@@ -172,8 +170,7 @@ HTML_TEMPLATE = """
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Tipe Pencarian</label>
                         <select x-model="searchType" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="profile">Profil Pemilik (Search)</option>
-                            <option value="tags">Tag / Nama Tersimpan (Detail)</option>
+                            <option value="profile">Semua Tag Tersimpan (Bypass 403)</option>
                         </select>
                     </div>
                     <button @click="performSearch" :disabled="loading" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-semibold py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition disabled:opacity-50 flex items-center justify-center space-x-2">
@@ -209,15 +206,15 @@ HTML_TEMPLATE = """
                                             <div class="grid grid-cols-2 gap-2 text-sm">
                                                 <div><span class="text-slate-400 text-xs">Nama Tampil:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.displayName || '-'"></div></div>
                                                 <div><span class="text-slate-400 text-xs">Nomor:</span> <div class="font-medium text-slate-200" x-text="searchResult.result.profile.phoneNumber || '-'"></div></div>
-                                                <div><span class="text-slate-400 text-xs">Total Tag:</span> <div class="font-medium text-emerald-400" x-text="searchResult.result.profile.tagCount || getTotalTags().length"></div></div>
+                                                <div><span class="text-slate-400 text-xs">Total Tag Ditemukan:</span> <div class="font-medium text-emerald-400" x-text="getTotalTags().length"></div></div>
                                             </div>
                                         </div>
                                     </template>
 
                                     <template x-if="getTotalTags().length > 0">
                                         <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
-                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="getTotalTags().length"></span>)</div>
-                                            <div class="flex flex-wrap gap-2 max-h-72 overflow-y-auto pr-1">
+                                            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Lengkap Tag / Nama Tersimpan (<span x-text="getTotalTags().length"></span>)</div>
+                                            <div class="flex flex-wrap gap-2 max-h-80 overflow-y-auto pr-1">
                                                 <template x-for="tag in getTotalTags()">
                                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700">
                                                         <span x-text="tag.tag"></span>
@@ -244,7 +241,7 @@ HTML_TEMPLATE = """
                             <template x-if="!searchResult">
                                 <div class="flex flex-col items-center justify-center py-20 text-center text-slate-500 space-y-2">
                                     <p class="text-sm">Belum ada pencarian dilakukan.</p>
-                                    <p class="text-xs text-slate-600">Masukkan nomor dan pilih tipe pencarian untuk memulai.</p>
+                                    <p class="text-xs text-slate-600">Masukkan nomor dan klik Cari Sekarang untuk melihat seluruh tag.</p>
                                 </div>
                             </template>
                         </div>
@@ -278,48 +275,51 @@ HTML_TEMPLATE = """
                     this.$watch('deviceId', val => localStorage.setItem('gtc_deviceId', val ? val.trim() : ''));
                 },
 
+                // Extractor Rekursif untuk Mengumpulkan Seluruh Tag yang Tersirat di JSON
                 getTotalTags() {
                     if (!this.searchResult || !this.searchResult.result) return [];
-                    let r = this.searchResult.result;
-                    let allTags = [];
+                    let res = this.searchResult.result;
+                    let extracted = [];
 
-                    if (Array.isArray(r.tags)) allTags = allTags.concat(r.tags);
-                    if (r.profile && Array.isArray(r.profile.tags)) allTags = allTags.concat(r.profile.tags);
-                    if (r.groupedTags) {
-                        if (Array.isArray(r.groupedTags)) {
-                            r.groupedTags.forEach(group => {
-                                if (Array.isArray(group.tags)) allTags = allTags.concat(group.tags);
-                                if (Array.isArray(group)) allTags = allTags.concat(group);
-                            });
-                        } else if (typeof r.groupedTags === 'object') {
-                            Object.values(r.groupedTags).forEach(val => {
-                                if (Array.isArray(val)) allTags = allTags.concat(val);
-                                if (val && Array.isArray(val.tags)) allTags = allTags.concat(val.tags);
+                    function parseRecursive(obj) {
+                        if (!obj) return;
+                        if (Array.isArray(obj)) {
+                            obj.forEach(item => parseRecursive(item));
+                        } else if (typeof obj === 'object') {
+                            if (obj.tag && typeof obj.tag === 'string') {
+                                extracted.push({ tag: obj.tag, count: obj.count || 1 });
+                            } else if (obj.tagName && typeof obj.tagName === 'string') {
+                                extracted.push({ tag: obj.tagName, count: obj.count || 1 });
+                            } else if (obj.name && typeof obj.name === 'string' && !obj.phoneNumber) {
+                                extracted.push({ tag: obj.name, count: obj.count || 1 });
+                            }
+                            Object.values(obj).forEach(val => {
+                                if (typeof val === 'object' && val !== null) {
+                                    parseRecursive(val);
+                                }
                             });
                         }
                     }
-                    ['otherTags', 'ungroupedTags', 'tagList', 'customTags'].forEach(key => {
-                        if (Array.isArray(r[key])) allTags = allTags.concat(r[key]);
-                    });
+
+                    parseRecursive(res);
 
                     let map = new Map();
-                    allTags.forEach(t => {
-                        let tagName = typeof t === 'string' ? t : (t.tag || t.name);
-                        if (tagName) {
-                            let count = t.count || 1;
-                            if (map.has(tagName)) {
-                                map.set(tagName, Math.max(map.get(tagName), count));
+                    extracted.forEach(t => {
+                        let cleanName = t.tag.trim();
+                        if (cleanName) {
+                            if (map.has(cleanName)) {
+                                map.set(cleanName, Math.max(map.get(cleanName), t.count));
                             } else {
-                                map.set(tagName, count);
+                                map.set(cleanName, t.count);
                             }
                         }
                     });
 
-                    let result = [];
+                    let finalTags = [];
                     map.forEach((count, tag) => {
-                        result.push({ tag: tag, count: count });
+                        finalTags.push({ tag: tag, count: count });
                     });
-                    return result;
+                    return finalTags;
                 },
 
                 async performSearch() {
@@ -411,7 +411,6 @@ def api_search_endpoint():
     final_key = data.get("finalKey")
     device_id = data.get("deviceId")
     phone_raw = data.get("phone", "")
-    source = data.get("type", "profile")
 
     phone = phone_raw.strip()
     if phone.startswith("0"):
@@ -419,13 +418,13 @@ def api_search_endpoint():
     elif phone.startswith("62"):
         phone = "+" + phone
 
-    # Trik Bypass: Selalu gunakan endpoint '/v2.8/search' agar memakai kuota 'search' (196/200)
-    # dan terhindar dari Error 403 kuota 'numberDetail' (0/0)
+    # Panggilan Utama ke Search dengan parameter pembuka tag populer
     endpoint = "/v2.8/search"
     payload = {
         "countryCode": COUNTRY,
         "phoneNumber": phone,
         "source": "search",
+        "initiatedFrom": "POPULAR_TAGS",
         "token": token.strip() if token else "",
     }
 
