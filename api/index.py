@@ -91,6 +91,10 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     except Exception as e:
         return 500, {"meta": {"errorMessage": f"Network or JSON parse error: {str(e)}"}}
 
+    # Jika server mengembalikan error (status code bukan 200), kembalikan langsung responsnya
+    if r.status_code != 200:
+        return r.status_code, parsed
+
     if "data" in parsed:
         try:
             decrypted_str = decrypt(parsed["data"], clean_key)
@@ -98,7 +102,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
                 return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Final Key atau Token salah/kedaluwarsa."}}
             parsed = json.loads(decrypted_str)
         except json.JSONDecodeError:
-            return 400, {"meta": {"errorMessage": "Gagal membaca hasil dekripsi (Pastikan Final Key benar)."}}
+            return 400, {"meta": {"errorMessage": f"Gagal membaca hasil dekripsi. Respon: {parsed}"}}
         except Exception as e:
             return 400, {"meta": {"errorMessage": f"Decryption failed: {str(e)}"}}
             
@@ -275,7 +279,6 @@ HTML_TEMPLATE = """
                     this.$watch('deviceId', val => localStorage.setItem('gtc_deviceId', val ? val.trim() : ''));
                 },
 
-                // Extractor Rekursif untuk Mengumpulkan Seluruh Tag yang Tersirat di JSON
                 getTotalTags() {
                     if (!this.searchResult || !this.searchResult.result) return [];
                     let res = this.searchResult.result;
@@ -418,7 +421,6 @@ def api_search_endpoint():
     elif phone.startswith("62"):
         phone = "+" + phone
 
-    # Panggilan Utama ke Search dengan parameter pembuka tag populer
     endpoint = "/v2.8/search"
     payload = {
         "countryCode": COUNTRY,
