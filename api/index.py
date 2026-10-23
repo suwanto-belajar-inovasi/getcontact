@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
+# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -35,7 +36,7 @@ def decrypt(data: str, key_hex: str) -> str:
     clean_key = key_hex.strip()
     try:
         b_key = bytes.fromhex(clean_key)
-        dec = Cipher(algorithms.AES(b_key), modes.ECB()).encryptor()
+        dec = Cipher(algorithms.AES(b_key), modes.ECB()).decryptor()
         decoded_bytes = base64.b64decode(data)
         out = dec.update(decoded_bytes) + dec.finalize()
         if not out:
@@ -62,6 +63,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
     if not clean_key or len(clean_key) < 32:
         return 400, {"meta": {"errorMessage": "Final Key tidak valid atau kosong. Periksa kembali kredensial Anda."}}
 
+    # PERBAIKAN UTAMA: Menggunakan HMAC_KEY untuk tanda tangan request (x-req-signature)[cite: 8, 15]
     headers = {
         "Content-Type": "application/json",
         "x-os": ANDROID_OS,
@@ -71,7 +73,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
         "x-req-timestamp": ts,
         "x-country-code": COUNTRY,
         "x-encrypted": "1",
-        "x-req-signature": _sig(ts, raw, clean_key),
+        "x-req-signature": _sig(ts, raw, HMAC_KEY),
     }
     if clean_token:
         headers["x-token"] = clean_token
@@ -103,6 +105,7 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
             
     return r.status_code, parsed
 
+# Frontend HTML Template dengan Estetika & Fitur Komprehensif
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
