@@ -419,11 +419,13 @@ def api_search_endpoint():
     elif phone.startswith("62"):
         phone = "+" + phone
 
-    endpoint = "/v2.8/number-detail" if source == "tags" else "/v2.8/search"
+    # Trik Bypass: Selalu gunakan endpoint '/v2.8/search' agar memakai kuota 'search' (196/200)
+    # dan terhindar dari Error 403 kuota 'numberDetail' (0/0)
+    endpoint = "/v2.8/search"
     payload = {
         "countryCode": COUNTRY,
         "phoneNumber": phone,
-        "source": "profile" if source == "tags" else "search",
+        "source": "search",
         "token": token.strip() if token else "",
     }
 
