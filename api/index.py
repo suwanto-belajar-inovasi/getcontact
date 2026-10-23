@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 app = Flask(__name__)
 
-# Konfigurasi GetContact API Constants
+# Konfigurasi GetContact API Constants[cite: 1]
 GTC_BASE = "https://pbssrv-centralevents.com"
 HMAC_KEY = "31426764382a642f3a6665497235466f3d236d5d785b722b4c657457442a495b494524324866782a2364292478587a78662d7a7b7578593f71703e2b7e365762"
 ANDROID_OS = "android 9"
@@ -95,16 +95,15 @@ def gtc_call(endpoint: str, payload: dict, token: str, final_key: str, device_id
         try:
             decrypted_str = decrypt(parsed["data"], clean_key)
             if not decrypted_str:
-                return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Kemungkinan besar Final Key atau Token salah/kedaluwarsa."}}
+                return 400, {"meta": {"errorMessage": "Hasil dekripsi kosong. Kredensial Final Key / Token salah atau kedaluwarsa."}}
             parsed = json.loads(decrypted_str)
-        except json.JSONDecodeError as jde:
-            return 400, {"meta": {"errorMessage": f"Gagal memparsing JSON hasil dekripsi: {str(jde)}"}}]
+        except json.JSONDecodeError:
+            return 400, {"meta": {"errorMessage": "Gagal membaca data hasil dekripsi (Final Key atau Token tidak cocok)."}}
         except Exception as e:
             return 400, {"meta": {"errorMessage": f"Decryption failed: {str(e)}"}}
             
     return r.status_code, parsed
 
-# Frontend HTML Template dengan Estetika & Fitur Komprehensif
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="id" class="dark">
@@ -118,7 +117,6 @@ HTML_TEMPLATE = """
     <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
-    <!-- Header -->
     <header class="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
         <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
@@ -136,10 +134,7 @@ HTML_TEMPLATE = """
         </div>
     </header>
 
-    <!-- Main Container -->
     <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 space-y-6" x-data="getcontactApp()">
-        
-        <!-- Credential Configuration Card -->
         <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center justify-between">
                 <span>🔐 Autentikasi Akun (Credential)</span>
@@ -160,14 +155,11 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div class="text-xs text-slate-500 mt-2" x-show="!showCred">
-                Kredensial aktif tersimpan di sesi browser Anda. Klik "Ubah Kredensial" jika ingin memeriksa atau mengganti token.
+                Kredensial aktif tersimpan di sesi browser Anda. Klik "Ubah Kredensial" jika ingin memperbarui Token & Final Key.
             </div>
         </div>
 
-        <!-- Action Panel Tabs -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <!-- Left Column: Search & Quota Controls -->
             <div class="md:col-span-1 space-y-6">
                 <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
                     <h3 class="font-semibold text-slate-200 text-sm">🔍 Pencarian Nomor</h3>
@@ -187,7 +179,6 @@ HTML_TEMPLATE = """
                     </button>
                 </div>
 
-                <!-- Quota Widget -->
                 <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="font-semibold text-slate-200 text-sm">📊 Status Kuota</h3>
@@ -199,7 +190,6 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- Right Column: Results Display -->
             <div class="md:col-span-2">
                 <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl min-h-[420px] flex flex-col justify-between">
                     <div>
@@ -208,11 +198,9 @@ HTML_TEMPLATE = """
                             <span class="text-xs text-slate-400" x-text="resultStatus"></span>
                         </div>
 
-                        <!-- Result Content Container -->
                         <div class="space-y-4">
                             <template x-if="searchResult">
                                 <div class="space-y-4">
-                                    <!-- Profile Info Card -->
                                     <template x-if="searchResult.result && searchResult.result.profile">
                                         <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2">
                                             <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Informasi Profil</div>
@@ -224,7 +212,6 @@ HTML_TEMPLATE = """
                                         </div>
                                     </template>
 
-                                    <!-- Tags List Card (Comprehensive View - All Tags) -->
                                     <template x-if="getTotalTags().length > 0">
                                         <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
                                             <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Daftar Tag / Nama Tersimpan (<span x-text="getTotalTags().length"></span>)</div>
@@ -239,14 +226,12 @@ HTML_TEMPLATE = """
                                         </div>
                                     </template>
 
-                                    <!-- Error message display if decryption failed -->
                                     <template x-if="searchResult.meta && searchResult.meta.errorMessage">
                                         <div class="bg-red-950/40 border border-red-800/80 rounded-xl p-4 text-red-300 text-xs">
                                             <b>Error Server:</b> <span x-text="searchResult.meta.errorMessage"></span>
                                         </div>
                                     </template>
 
-                                    <!-- Raw JSON view -->
                                     <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4">
                                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Raw JSON Response</div>
                                         <pre class="text-xs text-emerald-300 font-mono overflow-x-auto max-h-48" x-text="JSON.stringify(searchResult, null, 2)"></pre>
@@ -268,11 +253,9 @@ HTML_TEMPLATE = """
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <!-- App Logic with Comprehensive Tag Extractor & Trim Sanitizer -->
     <script>
         function getcontactApp() {
             return {
